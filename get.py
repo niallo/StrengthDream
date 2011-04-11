@@ -52,12 +52,15 @@ def parse_unstructured_text(text):
             for lift in lifts:
                 if ls.startswith(lift):
                     entry["lift"] = lifts[lift.lower().strip()]
-                    state = FOUND_LIFT
+                    if "warmup" in text.lower():
+                        state = FOUND_LIFT
+                    else:
+                        state = FOUND_QUANTITIES
         elif state == FOUND_LIFT:
             if ls.startswith("warmup"):
                 state = FOUND_QUANTITIES
         elif state == FOUND_QUANTITIES:
-            if not ls or 'x' not in ls:
+            if entry["numbers"] and (not ls or 'x' not in ls):
                 state = START
                 entries.append(entry)
                 entry = {'numbers':[]}
@@ -67,9 +70,13 @@ def parse_unstructured_text(text):
                 reps = int(reps)
             except ValueError:
                 reps = None
+            pounds = pounds.strip()
 
-            entry["numbers"].append({"reps":reps,
-                "pounds":int(pounds.strip())})
+            entry["numbers"].append({"reps":reps, "pounds":pounds})
+
+    # handle edge end case
+    if not entries and entry:
+        entries.append(entry)
 
 
     return entries
