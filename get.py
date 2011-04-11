@@ -112,7 +112,7 @@ class GetWendler(object):
         return {"Authorization":"Basic %s" %(
             base64.b64encode("%s:%s" %(self.username, self.password)))}
 
-    def load_raw_data(self):
+    def _load_raw_data(self):
 
         ''' Fetch the raw unstructured workout data from Catch API. Other
         methods will parse this into structured  '''
@@ -142,6 +142,19 @@ class GetWendler(object):
         self.raw_data = [{"date":parse_rfc3339(note.get("created_at")),
             "text":note.get("text")} for note in notes["notes"]]
 
+    def fetch_and_parse(self):
+        ''' Load & parse the remote data '''
+
+        self._load_raw_data()
+
+        for item in self.raw_data:
+            parsed = parse_unstructured_text(item["text"])
+            item["entries"] = parsed
+
+        self.parsed_data = self.raw_data
+
+        return self.parsed_data
+
 
 
 
@@ -164,10 +177,13 @@ def main():
     gw = GetWendler(username=args.username, password=args.password,
             tag=args.tag)
 
-    gw.load_raw_data()
+    data = gw.fetch_and_parse()
 
-    for note in gw.raw_data:
-        print parse_unstructured_text(note["text"])
+    for session in data:
+        print session
+
+
+
 
 if __name__ == "__main__":
     main()
