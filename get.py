@@ -89,9 +89,9 @@ class GetWendler(object):
 
         notes = json.loads(data)
 
-        def parse_rfc3339(string):
-            if not string: return None
-            return datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S.%fZ')
+        def parse_rfc3339(s):
+            if not s: return None
+            return datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%fZ')
 
         self.raw_data = [{"date":parse_rfc3339(note.get("created_at")),
             "text":note.get("text")} for note in notes["notes"]]
