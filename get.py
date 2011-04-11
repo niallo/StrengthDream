@@ -37,8 +37,10 @@ def parse_unstructured_text(text):
 
     # parser states
     START, FOUND_LIFT, FOUND_QUANTITIES = (0, 1, 2)
-    # accepted lift names
-    lifts = ('deadlift', 'bench', 'press', 'squat', 'shoulder press')
+    # accepted lift names with some normalisations
+    lifts = {"deadlift" : "deadlift", "bench" : "bench press", "press" :
+            "press", "shoulder press" : "press",  "military press" : "press",
+            "squat": "squat"}
 
     state = START
     entries = []
@@ -49,7 +51,7 @@ def parse_unstructured_text(text):
         if state == START:
             for lift in lifts:
                 if ls.startswith(lift):
-                    entry["lift"] = lift
+                    entry["lift"] = lifts[lift.lower().strip()]
                     state = FOUND_LIFT
         elif state == FOUND_LIFT:
             if ls.startswith("warmup"):
