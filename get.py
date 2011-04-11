@@ -12,21 +12,48 @@ import urllib
 
 API = "api.catch.com"
 
-def get_creds():
-    ''' Read credentials from terminal '''
-    sys.stdout.write("Username: ")
-    username = sys.stdin.readline()
+def get_username():
+    ''' Read username from terminal '''
+    while True:
+        sys.stdout.write("Username: ")
+        username = sys.stdin.readline()
+        if username.strip():
+            break
 
-    password = getpass.getpass("Password: "), sys.stdin)
+    return username.strip()
 
-    return username, password
+def get_password():
+    ''' Read password from terminal '''
 
+    while True:
+        password = getpass.getpass("Password: ")
+        if password:
+            break
+
+    return password
+
+class UsernameRequired(Exception):
+    pass
+
+class PasswordRequired(Exception):
+    pass
+
+class TagRequired(Exception):
+    pass
 
 class GetWendler(object):
 
-    def __init__(self, username, password):
+    def __init__(self, username=None, password=None, tag=None):
+        if not username:
+            raise UsernameRequired()
+        if not password:
+            raise PasswordRequired()
+        if not tag:
+            raise TagRequired()
+
         self.username = username
         self.password = password
+        self.tag = tag
 
     def _make_basic_auth_header(self):
         ''' Basic auth '''
@@ -39,30 +66,46 @@ class GetWendler(object):
         methods will parse this into structured  '''
 
         self.conn = httplib.HTTPSConnection(API)
-        p = {"q":"#wendler"}
-        params = urllib.urlencode(p)
+        headers = self._make_basic_auth_header()
 
-        req = self.conn.request("GET", "/v2/search", params, headers)
+        req = self.conn.request("GET", "/v2/search?full=1&q=%s" %
+                urllib.quote_plus(self.tag), headers=headers)
 
         res = self.conn.getresponse()
 
         if res.status != 200:
-            sys.stderr.write("%d response from server.\n Body: %s" %(res.status,
-                res.body))
+            sys.stderr.write("%d response from server.\n Reason: %s" %(res.status,
+                res.reason))
             sys.exit(1)
 
-        data = response.read()
+        data = res.read()
 
         notes = json.loads(data)
 
         raw_data = [{"date":note.get("created_at"), "text":note.get("text")} for
-                note in notes]
+                note in notes["notes"]]
 
         return raw_data
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Get Wendler 5-3-1 unstructured data from Catch API')
+    parser.add_argument('--tag', dest='tag',
+                               default="#wendler",
+                               help='tag to use (default: #wendler)')
 
+    parser.add_argument('--username', dest='username', help='username to use')
+
+    args = parser.parse_args()
+
+    if not args.username:
+        args.username = get_username()
+    args.password = get_password()
+
+    gw = GetWendler(username=args.username, password=args.password,
+            tag=args.tag)
+
+    print gw.get_raw_data()
 
 if __name__ == "__main__":
     main()
