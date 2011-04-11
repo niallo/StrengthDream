@@ -8,6 +8,7 @@ import datetime
 import getpass
 import httplib
 import json
+import sqlite3
 import sys
 import urllib
 
@@ -162,11 +163,15 @@ class GetWendler(object):
 
 def main():
     parser = argparse.ArgumentParser(description='Get Wendler 5-3-1 unstructured data from Catch API')
+    parser.add_argument('-f', '--file', dest='dbfile',
+            help='sqlite3 data file to write (default: output.db)',
+            default="output.db")
     parser.add_argument('-t', '--tag', dest='tag',
                                default="#wendler",
                                help='tag to use (default: #wendler)')
 
     parser.add_argument('-u', '--username', dest='username', help='username to use')
+
 
     args = parser.parse_args()
 
