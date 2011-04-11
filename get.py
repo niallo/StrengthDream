@@ -4,6 +4,7 @@
 
 import argparse
 import base64
+import datetime
 import getpass
 import httplib
 import json
@@ -32,6 +33,11 @@ def get_password():
 
     return password
 
+def parse_unstructured_text(text):
+    ''' Parser for unstructured text '''
+    pass
+
+
 class UsernameRequired(Exception):
     pass
 
@@ -54,13 +60,14 @@ class GetWendler(object):
         self.username = username
         self.password = password
         self.tag = tag
+        self.raw_data = None
 
     def _make_basic_auth_header(self):
         ''' Basic auth '''
         return {"Authorization":"Basic %s" %(
             base64.b64encode("%s:%s" %(self.username, self.password)))}
 
-    def get_raw_data(self):
+    def load_raw_data(self):
 
         ''' Fetch the raw unstructured workout data from Catch API. Other
         methods will parse this into structured  '''
@@ -82,19 +89,25 @@ class GetWendler(object):
 
         notes = json.loads(data)
 
-        raw_data = [{"date":note.get("created_at"), "text":note.get("text")} for
-                note in notes["notes"]]
+        def parse_rfc3339(string):
+            if not string: return None
+            return datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S.%fZ')
 
-        return raw_data
+        self.raw_data = [{"date":parse_rfc3339(note.get("created_at")),
+            "text":note.get("text")} for note in notes["notes"]]
+
+
+
+
 
 
 def main():
     parser = argparse.ArgumentParser(description='Get Wendler 5-3-1 unstructured data from Catch API')
-    parser.add_argument('--tag', dest='tag',
+    parser.add_argument('-t', '--tag', dest='tag',
                                default="#wendler",
                                help='tag to use (default: #wendler)')
 
-    parser.add_argument('--username', dest='username', help='username to use')
+    parser.add_argument('-u', '--username', dest='username', help='username to use')
 
     args = parser.parse_args()
 
@@ -105,7 +118,9 @@ def main():
     gw = GetWendler(username=args.username, password=args.password,
             tag=args.tag)
 
-    print gw.get_raw_data()
+    gw.load_raw_data()
+
+    print gw.raw_data
 
 if __name__ == "__main__":
     main()
