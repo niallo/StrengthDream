@@ -81,7 +81,8 @@ class GetWendler(object):
         res = self.conn.getresponse()
 
         if res.status != 200:
-            sys.stderr.write("%d response from server.\n Reason: %s" %(res.status,
+            sys.stderr.write("%d response from server.\n Reason: %s" %(
+                res.status,
                 res.reason))
             sys.exit(1)
 
