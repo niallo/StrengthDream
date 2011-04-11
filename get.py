@@ -25,7 +25,6 @@ def get_username():
 
 def get_password():
     ''' Read password from terminal '''
-
     while True:
         password = getpass.getpass("Password: ")
         if password:
@@ -35,7 +34,44 @@ def get_password():
 
 def parse_unstructured_text(text):
     ''' Parser for unstructured text '''
-    pass
+
+    # parser states
+    START, FOUND_LIFT, FOUND_QUANTITIES = (0, 1, 2)
+    # accepted lift names
+    lifts = ('deadlift', 'bench', 'press', 'squat', 'shoulder press')
+
+    state = START
+    entries = []
+    entry = {'numbers':[]}
+    for line in text.split('\n'):
+        l = line.lower()
+        ls = l.strip()
+        if state == START:
+            for lift in lifts:
+                if ls.startswith(lift):
+                    entry["lift"] = lift
+                    state = FOUND_LIFT
+        elif state == FOUND_LIFT:
+            if ls.startswith("warmup"):
+                state = FOUND_QUANTITIES
+        elif state == FOUND_QUANTITIES:
+            if not ls or 'x' not in ls:
+                state = START
+                entries.append(entry)
+                entry = {'numbers':[]}
+                continue
+            reps, pounds = l.split('x')
+            try:
+                reps = int(reps)
+            except ValueError:
+                reps = None
+
+            entry["numbers"].append({"reps":reps,
+                "pounds":int(pounds.strip())})
+
+
+    return entries
+
 
 
 class UsernameRequired(Exception):
@@ -121,7 +157,8 @@ def main():
 
     gw.load_raw_data()
 
-    print gw.raw_data
+    for note in gw.raw_data:
+        print parse_unstructured_text(note["text"])
 
 if __name__ == "__main__":
     main()
