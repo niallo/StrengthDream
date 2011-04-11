@@ -17,11 +17,11 @@ def get_username():
     ''' Read username from terminal '''
     while True:
         sys.stdout.write("Username: ")
-        username = sys.stdin.readline()
-        if username.strip():
+        username = sys.stdin.readline().strip()
+        if username:
             break
 
-    return username.strip()
+    return username
 
 def get_password():
     ''' Read password from terminal '''
