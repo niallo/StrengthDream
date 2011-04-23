@@ -1,0 +1,138 @@
+<html>
+  <head>
+    <title>Wendler 5-3-1 Timeplot</title>
+    <style>
+        body {
+            background-color: #fff;
+            background-image: none;
+        }
+        .label {
+            color: #666;
+            margin-top: 0.5em;
+            padding: 0.1em;
+            font-family: 'verdana', 'helvetica', sans serif;
+        }
+        .timeplot-grid-label {
+            color: #333;
+            font-family: 'verdana', 'helvetica', sans serif;
+            font-size: 9px !important;
+        }
+        .sources {
+            font-size: 90%;
+        }
+    </style>
+    
+    <script type="text/javascript" src="http://api.simile-widgets.org/timeplot/1.1/timeplot-api.js "></script>
+
+    <script>
+        var timeplot1;
+
+        var color1 = new Timeplot.Color('#FCFFF5');
+        var color2 = new Timeplot.Color('#D1DBBD');
+        var color3 = new Timeplot.Color('#91AA9D');
+        var color4 = new Timeplot.Color('#468966');
+        var color5 = new Timeplot.Color('#193441');
+        var gridColor  = new Timeplot.Color('#FFE57F');
+        function onLoad() {
+
+            var timeGeometry = new Timeplot.DefaultTimeGeometry({
+                gridColor: "#000000",
+                min: "2010-11-01"
+            });
+
+            var geometry1 = new Timeplot.DefaultValueGeometry({
+                min: 100
+            });
+
+            var geometry2 = new Timeplot.DefaultValueGeometry({
+                min: 100
+            });
+
+            var geometry3 = new Timeplot.DefaultValueGeometry({
+                min: 100
+            });
+            var geometry4 = new Timeplot.DefaultValueGeometry({
+                min: 100
+            });
+
+            var eventSource1 = new Timeplot.DefaultEventSource();
+            var dataSource1 = new Timeplot.ColumnSource(eventSource1,1);
+
+            var eventSource2 = new Timeplot.DefaultEventSource();
+            var dataSource2 = new Timeplot.ColumnSource(eventSource2,1);
+
+            var eventSource3 = new Timeplot.DefaultEventSource();
+            var dataSource3 = new Timeplot.ColumnSource(eventSource3,1);
+
+            var eventSource4 = new Timeplot.DefaultEventSource();
+            var dataSource4 = new Timeplot.ColumnSource(eventSource4,1);
+            
+            var plotInfo1 = [
+                Timeplot.createPlotInfo({
+                    id: "Bench Press",
+                    dataSource: dataSource1,
+                    timeGeometry: timeGeometry,
+                    valueGeometry: geometry1,
+                    lineColor: "#0000ff",
+                    showValues: true
+                }),
+                Timeplot.createPlotInfo({
+                    id: "Press",
+                    dataSource: dataSource2,
+                    timeGeometry: timeGeometry,
+                    valueGeometry: geometry1,
+                    lineColor: "#00cf00",
+                    showValues: true
+                }),
+                Timeplot.createPlotInfo({
+                    id: "Deadlift",
+                    dataSource: dataSource3,
+                    timeGeometry: timeGeometry,
+                    valueGeometry: geometry1,
+                    lineColor: "#ff0000",
+                    fillColor: "#cc8080",
+                    showValues: true
+                }),
+                Timeplot.createPlotInfo({
+                    id: "Squat",
+                    dataSource: dataSource4,
+                    timeGeometry: timeGeometry,
+                    valueGeometry: geometry1,
+                    lineColor: "#D0A825",
+                    showValues: true
+                })
+            ];
+            
+            timeplot1 = Timeplot.create(document.getElementById("timeplot1"), plotInfo1);
+            timeplot1.loadText("bench press.txt", ",", eventSource1);
+            timeplot1.loadText("press.txt", ",", eventSource2);
+            timeplot1.loadText("deadlift.txt", ",", eventSource3);
+            timeplot1.loadText("squat.txt", ",", eventSource4);
+        }            
+        
+        var resizeTimerID = null;
+        function onResize() {
+            if (resizeTimerID == null) {
+                resizeTimerID = window.setTimeout(function() {
+                    resizeTimerID = null;
+                    if (timeplot1) timeplot1.repaint();
+                }, 0);
+            }
+        }
+    </script>
+  </head>
+  <body onload="onLoad();" onresize="onResize();">
+
+    <div id="content">
+        <div class="label"><span style="color: #0000ff;">Bench Press</span> vs. <span style="color: #00cf00;">Press</span> vs. <span style="color: #ff0000;">Deadlift</span> vs. <span style="color: #D0A825;">Squat</span></div>
+
+        <div id="timeplot1" style="height: 300px" class="timeplot"></div>
+        <p class="note">
+        We use Wendler's formula to estimate a 1RM for this graph:
+
+        Weight x Reps x .0333 + Weight = Estimated 1RM
+        </p> 
+    </div>
+    
+  </body>
+</html>
