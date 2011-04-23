@@ -3,8 +3,6 @@
 """ Tool to query and report on workout data from SQLite3 """
 
 import argparse
-import datetime
-import json
 import sqlite3
 import sys
 
