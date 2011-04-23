@@ -1,37 +1,12 @@
 #!/usr/bin/env python2.7
 
-''' Fetch all notes tagged with #Wendler from Catch and parse them '''
+""" Tool to import unstructured Wendler workout data to SQLite3 """
 
 import argparse
-import base64
 import datetime
-import getpass
-import httplib
 import json
 import sqlite3
 import sys
-import urllib
-
-API = "api.catch.com"
-
-def get_username():
-    ''' Read username from terminal '''
-    while True:
-        sys.stdout.write("Username: ")
-        username = sys.stdin.readline().strip()
-        if username:
-            break
-
-    return username
-
-def get_password():
-    ''' Read password from terminal '''
-    while True:
-        password = getpass.getpass("Password: ")
-        if password:
-            break
-
-    return password
 
 def parse_unstructured_text(text):
     ''' Parser for unstructured text '''
@@ -79,60 +54,37 @@ def parse_unstructured_text(text):
     if not entries and entry:
         entries.append(entry)
 
-
     return entries
 
+def open_db(filename):
+    """ Open SQLite3 database file """
+    conn = sqlite3.connect(filename)
+    return conn
+
+def load_and_execute_schema(cursor):
+    f = open("schema.sql", "r")
+    schema = f.read()
+    f.close()
+    for stmnt in schema.split(';'):
+        cursor.execute(stmnt)
 
 
-class UsernameRequired(Exception):
+class DBCursorRequired(Exception):
     pass
 
-class PasswordRequired(Exception):
+class SessionsRequired(Exception):
     pass
 
-class TagRequired(Exception):
-    pass
+class WendlerLoader(object):
 
-class GetWendler(object):
-
-    def __init__(self, username=None, password=None, tag=None):
-        if not username:
-            raise UsernameRequired()
-        if not password:
-            raise PasswordRequired()
-        if not tag:
-            raise TagRequired()
-
-        self.username = username
-        self.password = password
-        self.tag = tag
+    def __init__(self):
         self.raw_data = None
 
-    def _make_basic_auth_header(self):
-        ''' Basic auth '''
-        return {"Authorization":"Basic %s" %(
-            base64.b64encode("%s:%s" %(self.username, self.password)))}
+    def _load_raw_data(self, filename):
 
-    def _load_raw_data(self):
-
-        ''' Fetch the raw unstructured workout data from Catch API. Other
-        methods will parse this into structured  '''
-
-        self.conn = httplib.HTTPSConnection(API)
-        headers = self._make_basic_auth_header()
-
-        req = self.conn.request("GET", "/v2/search?full=1&q=%s" %
-                urllib.quote_plus(self.tag), headers=headers)
-
-        res = self.conn.getresponse()
-
-        if res.status != 200:
-            sys.stderr.write("%d response from server.\n Reason: %s" %(
-                res.status,
-                res.reason))
-            sys.exit(1)
-
-        data = res.read()
+        f = open(filename, "r")
+        data = f.read()
+        f.close()
 
         notes = json.loads(data)
 
@@ -141,12 +93,13 @@ class GetWendler(object):
             return datetime.datetime.strptime(s, '%Y-%m-%dT%H:%M:%S.%fZ')
 
         self.raw_data = [{"date":parse_rfc3339(note.get("created_at")),
-            "text":note.get("text")} for note in notes["notes"]]
+            "text":note.get("text")} for note in notes["notes"] if "wendler" in
+            [tag.lower() for tag in note["tags"]]]
 
-    def fetch_and_parse(self):
-        ''' Load & parse the remote data '''
+    def load_and_parse(self, filename):
+        ''' Load & parse the unstructured data '''
 
-        self._load_raw_data()
+        self._load_raw_data(filename)
 
         for item in self.raw_data:
             parsed = parse_unstructured_text(item["text"])
@@ -157,38 +110,56 @@ class GetWendler(object):
         return self.parsed_data
 
 
+class SessionWriter(object):
 
+    def __init__(self, dbcursor=None):
+        if not dbcursor:
+            raise DBCursorRequired()
+        self.cur = dbcursor
 
+    def write_schema(self):
+        load_and_execute_schema(self.cur)
 
+    def write_sessions(self, sessions=None):
+        if not sessions:
+            raise SessionsRequired()
+
+        for session in sessions:
+            s1 = "INSERT INTO session (session_timestamp, session_text) VALUES (?,?)"
+            self.cur.execute(s1, (session["date"], session.get("text")))
+            rowid = self.cur.lastrowid
+            for session_entry in session["entries"]:
+                s2 = "INSERT INTO session_entry (session_id, session_entry_lift, session_entry_reps, session_entry_pounds) VALUES (?, ?, ?, ?)"
+                max_numbers = session_entry["numbers"][len(session_entry["numbers"])-1]
+                self.cur.execute(s2, (rowid, session_entry["lift"],
+                    max_numbers["reps"],
+                    max_numbers["pounds"]))
 
 def main():
-    parser = argparse.ArgumentParser(description='Get Wendler 5-3-1 unstructured data from Catch API')
-    parser.add_argument('-f', '--file', dest='dbfile',
+    parser = argparse.ArgumentParser(
+        description='Generate structured SQLite3 DB from Wendler 5-3-1 unstructured data'
+        )
+    parser.add_argument('-o', '--output', dest='dbfile',
             help='sqlite3 data file to write (default: output.db)',
             default="output.db")
-    parser.add_argument('-t', '--tag', dest='tag',
-                               default="#wendler",
-                               help='tag to use (default: #wendler)')
 
-    parser.add_argument('-u', '--username', dest='username', help='username to use')
-
+    parser.add_argument('-f', '--file', dest='jsonfile',
+        help="json input file to read",
+        required=True)
 
     args = parser.parse_args()
 
-    if not args.username:
-        args.username = get_username()
-    args.password = get_password()
+    wl = WendlerLoader()
+    wl.load_and_parse(args.jsonfile)
 
-    gw = GetWendler(username=args.username, password=args.password,
-            tag=args.tag)
+    conn = open_db(args.dbfile)
+    cur = conn.cursor()
 
-    data = gw.fetch_and_parse()
+    sw = SessionWriter(cur)
 
-    for session in data:
-        print session
-
-
-
+    sw.write_schema()
+    sw.write_sessions(sessions=wl.parsed_data)
+    conn.commit()
 
 if __name__ == "__main__":
     main()
